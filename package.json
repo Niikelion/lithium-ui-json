@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "displayName": "Lithium UI Json",
   "description": "Extension for Lithium UI that provides serializable wrapper for JToken and custom inspector",
-  "unity": "2021.1",
+  "unity": "2022.1",
   "keywords": [
     "ui", "lithium", "ui-toolkit", "json"
   ],
