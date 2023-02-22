@@ -1,32 +1,24 @@
 ﻿using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Runtime.Serialization;
+using UnityEngine;
 
 namespace UI.Li.Json
 {
     [Serializable]
-    public class SerializableJson: ISerializable
+    public class SerializableJson: ISerializationCallbackReceiver
     {
-        public JToken Value;
+        public JToken Value = JValue.CreateNull();
 
-        private string data = "null";
+        [SerializeField] private string data = "null";
 
-        public SerializableJson()
+        public void OnBeforeSerialize()
         {
-            Value = JToken.Parse(data);
+            string nData = Value.ToString(Formatting.None);
+            if (data != null && nData != data)
+                data = nData;
         }
-        
-        public SerializableJson(SerializationInfo info, StreamingContext context)
-        {
-            data = (string) info.GetValue("data", typeof(string));
-            Value = JToken.Parse(data);
-        }
-        
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            data = Value.ToString(Formatting.None);
-            info.AddValue("data", data, typeof(string));
-        }
+
+        public void OnAfterDeserialize() => Value = JToken.Parse(data);
     }
 }

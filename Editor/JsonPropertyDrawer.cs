@@ -13,13 +13,21 @@ namespace UI.Li.Json
         {
             object value = property.GetUnderlyingValue();
             
+            property.serializedObject.Update();
+            
             if (value is not SerializableJson json)
                 throw new InvalidOperationException($"This drawer can not handle {value.GetType().FullName}");
 
             void UpdateValue(JToken v)
             {
+                Undo.RecordObject(property.serializedObject.targetObject, "Modified Json");
+
+                if (PrefabUtility.IsPartOfAnyPrefab(property.serializedObject.targetObject))
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(property.serializedObject.targetObject);
+                
                 json.Value = v;
-                PrefabUtility.RecordPrefabInstancePropertyModifications(property.serializedObject.targetObject);
+
+                property.serializedObject.ApplyModifiedProperties();
             }
               
             return CustomField.V(
