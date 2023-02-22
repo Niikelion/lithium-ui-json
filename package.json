@@ -1,0 +1,21 @@
+﻿{
+  "name": "niikelion.ui.lithium.json",
+  "version": "0.0.1",
+  "displayName": "Lithium UI Json",
+  "description": "Extension for Lithium UI that provides serializable wrapper for JToken and custom inspector",
+  "unity": "2021.1",
+  "keywords": [
+    "ui", "lithium", "ui-toolkit", "json"
+  ],
+  "dependencies": {
+    "niikelion.ui.lithium": "0.0.1",
+    "com.unity.nuget.newtonsoft-json": "1.1.2"
+  },
+  "author": {
+    "name": "Michał Osiński",
+    "email": "nicraft@tlen.pl"
+  },
+  "publishConfig": {
+    "registry": "https://package.openupm.com"
+  }
+}

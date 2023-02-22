@@ -1,0 +1,21 @@
+{
+    "name": "niikelion.ui.lithium.json.Editor",
+    "rootNamespace": "UI.Li.Editor",
+    "references": [
+        "niikelion.ui.lithium",
+        "niikelion.ui.lithium.Editor",
+        "niikelion.ui.lithium.json",
+        "Unity.VisualScripting.Core.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
