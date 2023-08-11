@@ -9,7 +9,7 @@ namespace UI.Li.Json
     [CustomPropertyDrawer(typeof(SerializableJson))]
     public class JsonPropertyDrawer: ComposablePropertyDrawer
     {
-        protected override IComposition Layout(SerializedProperty property)
+        protected override IComponent Layout(SerializedProperty property)
         {
             object value = property.GetUnderlyingValue();
             

@@ -142,12 +142,12 @@ namespace UI.Li.Json
 
         private struct JsonTypeEntry
         {
-            public readonly Func<JToken, Action<JToken>, IComposition> Handler;
+            public readonly Func<JToken, Action<JToken>, IComponent> Handler;
             public readonly Func<JToken> Creator;
             public readonly string Name;
             public readonly JTokenType[] Types;
 
-            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, IComposition> handler, Func<JToken> creator, JTokenType[] types)
+            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, IComponent> handler, Func<JToken> creator, JTokenType[] types)
             {
                 Name = name;
                 Handler = handler;
@@ -155,7 +155,7 @@ namespace UI.Li.Json
                 Types = types;
             }
             
-            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, IComposition> handler, Func<JToken> creator, JTokenType type)
+            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, IComponent> handler, Func<JToken> creator, JTokenType type)
             {
                 Name = name;
                 Handler = handler;
@@ -198,7 +198,7 @@ namespace UI.Li.Json
         #endregion
 
         [PublicAPI]
-        public static IComposition Value(JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
+        public static IComponent Value(JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
             CU.Flex(
                 data: new( flexGrow: 1 ),
                 content: new[]
@@ -209,9 +209,9 @@ namespace UI.Li.Json
                 }
             );
 
-        public static IComposition DynamicTypeValue([NotNull] JToken initialValue,
+        public static IComponent DynamicTypeValue([NotNull] JToken initialValue,
             [NotNull] Action<JToken> onValueChanged) =>
-            new Composition(ctx =>
+            new Component(ctx =>
             {
                 var typeNames = types.Select(t => t.Name).ToList();
                 
@@ -233,7 +233,7 @@ namespace UI.Li.Json
                     ),
                     content: new[]
                     {
-                        CU.Flex(direction: FlexDirection.Row, content: new IComposition[]
+                        CU.Flex(direction: FlexDirection.Row, content: new IComponent[]
                         {
                             CU.Dropdown(
                                 type.Value,
@@ -260,10 +260,10 @@ namespace UI.Li.Json
                     });
             }, isStatic: true);
 
-        private static IComposition Null() => CU.Text("Null");
+        private static IComponent Null() => CU.Text("Null");
 
-        private static IComposition String([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
-            new Composition(ctx =>
+        private static IComponent String([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
+            new Component(ctx =>
             {
                 var editing = ctx.Remember(false);
                 var currentValue = ctx.Remember(initialValue.Value<string>());
@@ -284,7 +284,7 @@ namespace UI.Li.Json
                     onValueChanged(currentValue.Value);
                 }
                 
-                IComposition NotEditing() =>
+                IComponent NotEditing() =>
                     CU.Flex(
                         direction: FlexDirection.Row,
                         content: new[] { CU.Text("\""), CU.Text(currentValue), CU.Text("\"") },
@@ -292,7 +292,7 @@ namespace UI.Li.Json
                             onClick: StartEditing
                         ));
 
-                IComposition Editing() =>
+                IComponent Editing() =>
                     CU.TextField(
                         v => tmpValue.Value = v,
                         currentValue,
@@ -309,8 +309,8 @@ namespace UI.Li.Json
                 return CU.Switch(editing, Editing, NotEditing);
             });
 
-        private static IComposition Number([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
-            new Composition(ctx =>
+        private static IComponent Number([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
+            new Component(ctx =>
             {
                 var editing = ctx.Remember(false);
                 var currentValue = ctx.Remember(initialValue.Value<float>());
@@ -335,12 +335,12 @@ namespace UI.Li.Json
                     onValueChanged(currentValue.Value);
                 }
 
-                IComposition NotEditing() =>
+                IComponent NotEditing() =>
                     CU.Text(ValueAsString(), data: new(
                         onClick: StartEditing
                     ));
 
-                IComposition Editing() =>
+                IComponent Editing() =>
                     CU.TextField(
                         v => tmpValue.Value = v,
                         ValueAsString(),
@@ -357,8 +357,8 @@ namespace UI.Li.Json
                 return CU.Switch(editing, Editing, NotEditing);
             });
 
-        private static IComposition Array([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
-            new Composition(ctx =>
+        private static IComponent Array([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
+            new Component(ctx =>
             {
                 var items = ctx.Use(() => new MutableList<JToken>(initialValue.Children()));
 
@@ -388,7 +388,7 @@ namespace UI.Li.Json
                     InvokeOnValueChanged();
                 }
 
-                static IComposition ArrayItem(
+                static IComponent ArrayItem(
                     int index,
                     [NotNull] JToken initialValue,
                     [NotNull] Action<JToken> onValueChanged,
@@ -407,10 +407,10 @@ namespace UI.Li.Json
                         DynamicTypeValue(initialValue, onValueChanged)
                     });
                 
-                IComposition AddButton() =>
+                IComponent AddButton() =>
                     CU.Button(AddElement, "Add");
 
-                var content = new List<IComposition>();
+                var content = new List<IComponent>();
                 
                 content.AddRange(items.IndexedValues.Select((item, index) =>
                 {
@@ -455,8 +455,8 @@ namespace UI.Li.Json
                 return CU.Flex(content);
             }, isStatic: true);
 
-        private static IComposition Object([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
-            new Composition(ctx =>
+        private static IComponent Object([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
+            new Component(ctx =>
             {
                 var obj = (JObject)initialValue;
                 
@@ -480,7 +480,7 @@ namespace UI.Li.Json
                     InvokeOnValueChanged();
                 }
 
-                static IComposition ObjectItem(
+                static IComponent ObjectItem(
                     string name,
                     [NotNull] JToken initialValue,
                     [NotNull] Action<string> onNameChanged,
@@ -500,8 +500,8 @@ namespace UI.Li.Json
                     DynamicTypeValue(initialValue, onValueChanged)
                 });
                 
-                IComposition AddField() =>
-                    new Composition(fCtx =>
+                IComponent AddField() =>
+                    new Component(fCtx =>
                     {
                         var tmpValue = fCtx.RememberRef("");
 
@@ -521,7 +521,7 @@ namespace UI.Li.Json
                         );
                     });
                 
-                var content = new List<IComposition>();
+                var content = new List<IComponent>();
 
                 content.AddRange(items.IndexedValues.Select((item, index) =>
                 {
