@@ -8,12 +8,12 @@
     "ui", "lithium", "ui-toolkit", "json"
   ],
   "dependencies": {
-    "niikelion.ui.lithium": "0.0.2",
+    "niikelion.ui.lithium": "0.2.1",
     "com.unity.nuget.newtonsoft-json": "1.1.2"
   },
   "author": {
     "name": "Michał Osiński",
-    "email": "nicraft@tlen.pl"
+    "email": "michal.osinski101@gmail.com"
   },
   "publishConfig": {
     "registry": "https://package.openupm.com"

@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Linq;
 using UnityEngine;
-using System.Collections;
 using Newtonsoft.Json.Linq;
 using JetBrains.Annotations;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
-
+using UI.Li.Utils.Continuations;
 using CU = UI.Li.Utils.CompositionUtils;
 
 namespace UI.Li.Json
@@ -14,140 +13,15 @@ namespace UI.Li.Json
     public static class JsonUI
     {
         #region Helpers
-        //TODO: move to main package
-        private class MutableList<T> : IMutableValue, IList<T>
-        {
-            public int Count => values.Count;
-            public bool IsReadOnly => false;
-            public IEnumerable<(ulong id, T value)> IndexedValues => values;
-
-            private readonly List<(ulong id, T value)> values = new();
-            private ulong nextId;
-            
-            public event Action OnValueChanged;
-
-            public MutableList(IEnumerable<T> elements)
-            {
-                foreach (var element in elements)
-                    InternalAdd(element);
-            }
-
-            public void Dispose()
-            {
-                values.Clear();
-                nextId = 0;
-                OnValueChanged = null;
-            }
-
-            public IEnumerator<T> GetEnumerator() => values.Select(item => item.value).GetEnumerator();
-
-            public T this[int index]
-            {
-                get => values[index].value;
-                set
-                {
-                    if (EqualityComparer<T>.Default.Equals(values[index].value, value))
-                        return;
-                    
-                    values[index] = (GetNextId(), value);
-                    OnValueChanged?.Invoke();
-                }
-            }
-
-            public void Swap(int index1, int index2)
-            {
-                if (index1 < 0 || index1 >= Count)
-                    throw new ArgumentOutOfRangeException(nameof(index1));
-                if (index2 < 0 || index2 >= Count)
-                    throw new ArgumentOutOfRangeException(nameof(index2));
-
-                (values[index1], values[index2]) = (values[index2], values[index1]);
-                OnValueChanged?.Invoke();
-            }
-            
-            public void Add(T item)
-            {
-                InternalAdd(item);
-                OnValueChanged?.Invoke();
-            }
-
-            public void Clear()
-            {
-                values.Clear();
-                OnValueChanged?.Invoke();
-            }
-
-            public bool Contains(T item)
-            {
-                foreach (var i in values)
-                    if (EqualityComparer<T>.Default.Equals(i.value, item))
-                        return true;
-
-                return false;
-            }
-
-            public void CopyTo(T[] array, int arrayIndex)
-            {
-                int end = Math.Min(array.Length, arrayIndex + Count);
-
-                for (int i = arrayIndex; i < end; ++i)
-                    array[i] = values[i].value;
-            }
-
-            public bool Remove(T item)
-            {
-                int index = IndexOf(item);
-                if (index < 0)
-                    return false;
-                
-                RemoveAt(index);
-                return true;
-            }
-
-            public int IndexOf(T item)
-            {
-                for (int i=0; i<values.Count; ++i)
-                    if (EqualityComparer<T>.Default.Equals(values[i].value, item))
-                        return i;
-                
-                return -1;
-            }
-
-            public void Insert(int index, T item)
-            {
-                values.Insert(index, (GetNextId(), item));
-                OnValueChanged?.Invoke();
-            }
-
-            public void RemoveAt(int index)
-            {
-                values.RemoveAt(index);
-                OnValueChanged?.Invoke();
-            }
-
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-            private ulong GetNextId()
-            {
-                ulong ret = nextId++;
-
-                if (nextId == 0)
-                    throw new Exception("Index overflow, not sure how but yeah");
-
-                return ret;
-            }
-
-            private void InternalAdd(T item) => values.Add((GetNextId(), item));
-        }
-
         private struct JsonTypeEntry
         {
-            public readonly Func<JToken, Action<JToken>, IComponent> Handler;
+            //TODO: after portals are implemented in the main package, change it back to IComponent and use them instead
+            public readonly Func<JToken, Action<JToken>, (IComponent, IComponent)> Handler;
             public readonly Func<JToken> Creator;
             public readonly string Name;
             public readonly JTokenType[] Types;
 
-            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, IComponent> handler, Func<JToken> creator, JTokenType[] types)
+            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, (IComponent, IComponent)> handler, Func<JToken> creator, JTokenType[] types)
             {
                 Name = name;
                 Handler = handler;
@@ -155,7 +29,7 @@ namespace UI.Li.Json
                 Types = types;
             }
             
-            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, IComponent> handler, Func<JToken> creator, JTokenType type)
+            public JsonTypeEntry(string name, Func<JToken, Action<JToken>, (IComponent, IComponent)> handler, Func<JToken> creator, JTokenType type)
             {
                 Name = name;
                 Handler = handler;
@@ -170,19 +44,25 @@ namespace UI.Li.Json
         private static readonly JsonTypeEntry[] types = {
             new("Null", type: JTokenType.Null,
                 creator: JValue.CreateNull,
-                handler: (_, _) => Null()),
+                handler: (_, _) => (Null(), null)),
             new("Number", types: new[] { JTokenType.Float, JTokenType.Integer },
                 creator: () => 0,
-                handler: Number),
+                handler: (v, c) => (Number(v, c), null)),
             new("String", type: JTokenType.String,
                 creator: () => "",
-                handler: String),
+                handler: (v, c) => (String(v, c), null)),
             new("Array", type: JTokenType.Array,
                 creator: () => new JArray(),
-                handler: Array),
+                handler: (v, c) => (CU.Text("["), CU.Flex(content: IComponent.Seq(
+                        Array(v, c),
+                        CU.Text("]")
+                    ), direction: FlexDirection.Column))),
             new("Object", type: JTokenType.Object,
                 creator: () => new JObject(),
-                handler: Object)
+                handler: (v, c) => (CU.Text("{"), CU.Flex(content: IComponent.Seq(
+                        Object(v, c),
+                        CU.Text("}")
+                    ), direction: FlexDirection.Column)))
         };
         
         private static Dictionary<JTokenType, JsonTypeEntry> CreateMapping()
@@ -195,19 +75,23 @@ namespace UI.Li.Json
 
             return ret;
         }
+
+        private static JsonTypeEntry GetEntryForValue(JToken value) => TypeMapping[value?.Type ?? JTokenType.Null];
         #endregion
 
         [PublicAPI]
-        public static IComponent Value(JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
-            CU.Flex(
-                data: new( flexGrow: 1 ),
-                content: new[]
-                {
-                    initialValue == null
-                        ? Null()
-                        : TypeMapping[initialValue.Type].Handler(initialValue, onValueChanged)
-                }
-            );
+        public static (IComponent, IComponent) Value(JToken initialValue, [NotNull] Action<JToken> onValueChanged)
+        {
+            var (first, second) = GetEntryForValue(initialValue).Handler(initialValue, onValueChanged);
+            
+            return (first?.Let(f => CU.Box(
+                data: new(flexGrow: 1),
+                content: f
+            )), second?.Let(s => CU.Box(
+                data: new(flexGrow: 1),
+                content: s
+            )));
+        }
 
         public static IComponent DynamicTypeValue([NotNull] JToken initialValue,
             [NotNull] Action<JToken> onValueChanged) =>
@@ -224,6 +108,8 @@ namespace UI.Li.Json
                     onValueChanged(t);
                 }
 
+                var (first, second) = Value(tmpValue.Value, OnValueChanged);
+                
                 return CU.Flex(
                     direction: FlexDirection.Row,
                     data: new(
@@ -231,10 +117,8 @@ namespace UI.Li.Json
                         justifyContent: Justify.SpaceBetween,
                         flexGrow: 1
                     ),
-                    content: new[]
-                    {
-                        CU.Flex(direction: FlexDirection.Row, content: new IComponent[]
-                        {
+                    content: IComponent.Seq(
+                        CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
                             CU.Dropdown(
                                 type.Value,
                                 data: new(
@@ -255,9 +139,8 @@ namespace UI.Li.Json
                                 options: typeNames
                             ),
                             CU.Text(":")
-                        }),
-                        CU.WithId(type + 1, Value(tmpValue.Value, OnValueChanged))
-                    });
+                        ).Let(s => first != null ? s.Append(CU.WithId(type + 1, first)) : s))
+                    ).Let(s => second != null ? s.Append(CU.WithId(type + 1, second)) : s));
             }, isStatic: true);
 
         private static IComponent Null() => CU.Text("Null");
@@ -287,7 +170,7 @@ namespace UI.Li.Json
                 IComponent NotEditing() =>
                     CU.Flex(
                         direction: FlexDirection.Row,
-                        content: new[] { CU.Text("\""), CU.Text(currentValue), CU.Text("\"") },
+                        content: IComponent.Seq(CU.Text("\""), CU.Text(currentValue), CU.Text("\"")),
                         data: new(
                             onClick: StartEditing
                         ));
@@ -398,14 +281,13 @@ namespace UI.Li.Json
                 ) => CU.Flex(
                     direction: FlexDirection.Row,
                     data: new(alignItems: Align.FlexStart),
-                    content: new[]
-                    {
+                    content: IComponent.Seq(
                         CU.Text($"{index}:", data: new ( minWidth: 20 )),
                         CU.Button(onRequestRemove, "-"),
                         CU.Button(onRequestMoveUp, "^"),
                         CU.Button(onRequestMoveDown, "v"),
                         DynamicTypeValue(initialValue, onValueChanged)
-                    });
+                    ));
                 
                 IComponent AddButton() =>
                     CU.Button(AddElement, "Add");
@@ -491,14 +373,13 @@ namespace UI.Li.Json
                 ) => CU.Flex(
                     direction: FlexDirection.Row,
                     data: new ( alignItems: Align.FlexStart ),
-                    content: new[]
-                {
-                    CU.Button(onRequestRemove, "-"),
-                    CU.Button(onRequestMoveUp, "^"),
-                    CU.Button(onRequestMoveDown, "v"),
-                    String(name, v => onNameChanged(v.Value<string>())),
-                    DynamicTypeValue(initialValue, onValueChanged)
-                });
+                    content: IComponent.Seq(
+                        CU.Button(onRequestRemove, "-"),
+                        CU.Button(onRequestMoveUp, "^"),
+                        CU.Button(onRequestMoveDown, "v"),
+                        String(name, v => onNameChanged(v.Value<string>())),
+                        DynamicTypeValue(initialValue, onValueChanged)
+                ));
                 
                 IComponent AddField() =>
                     new Component(fCtx =>
