@@ -5,6 +5,8 @@ using Newtonsoft.Json.Linq;
 using JetBrains.Annotations;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
+using UI.Li.Common;
+using UI.Li.Utils;
 using UI.Li.Utils.Continuations;
 using CU = UI.Li.Utils.CompositionUtils;
 
@@ -41,6 +43,8 @@ namespace UI.Li.Json
         private static Dictionary<JTokenType, JsonTypeEntry> TypeMapping => typeMapping ??= CreateMapping();
         private static Dictionary<JTokenType, JsonTypeEntry> typeMapping;
 
+        private static readonly Style fillStyle = new (flexGrow: 1);
+        
         private static readonly JsonTypeEntry[] types = {
             new("Null", type: JTokenType.Null,
                 creator: JValue.CreateNull,
@@ -84,13 +88,10 @@ namespace UI.Li.Json
         {
             var (first, second) = GetEntryForValue(initialValue).Handler(initialValue, onValueChanged);
             
-            return (first?.Let(f => CU.Box(
-                data: new(flexGrow: 1),
-                content: f
-            )), second?.Let(s => CU.Box(
-                data: new(flexGrow: 1),
-                content: s
-            )));
+            return (
+                first?.Let(f => CU.Box(f).WithStyle(fillStyle)),
+                second?.Let(s => CU.Box(s).WithStyle(fillStyle))
+            );
         }
 
         public static IComponent DynamicTypeValue([NotNull] JToken initialValue,
@@ -112,18 +113,10 @@ namespace UI.Li.Json
                 
                 return CU.Flex(
                     direction: FlexDirection.Row,
-                    data: new(
-                        alignItems: Align.FlexStart,
-                        justifyContent: Justify.SpaceBetween,
-                        flexGrow: 1
-                    ),
                     content: IComponent.Seq(
                         CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
                             CU.Dropdown(
                                 type.Value,
-                                data: new(
-                                    width: 70
-                                ),
                                 onSelectionChanged: newType =>
                                 {
                                     if (type.Value == newType)
@@ -137,10 +130,15 @@ namespace UI.Li.Json
                                     OnValueChanged(tmpValue.Value);
                                 },
                                 options: typeNames
-                            ),
+                            ).WithStyle(new (width: 70)),
                             CU.Text(":")
                         ).Let(s => first != null ? s.Append(CU.WithId(type + 1, first)) : s))
-                    ).Let(s => second != null ? s.Append(CU.WithId(type + 1, second)) : s));
+                    ).Let(s => second != null ? s.Append(CU.WithId(type + 1, second)) : s)
+                ).WithStyle(new (
+                    alignItems: Align.FlexStart,
+                    justifyContent: Justify.SpaceBetween,
+                    flexGrow: 1
+                    ));
             }, isStatic: true);
 
         private static IComponent Null() => CU.Text("Null");
@@ -152,6 +150,8 @@ namespace UI.Li.Json
                 var currentValue = ctx.Remember(initialValue.Value<string>());
 
                 var tmpValue = ctx.RememberRef(initialValue.ToString());
+
+                return CU.Switch(editing, Editing, NotEditing);
 
                 void StartEditing() => editing.Value = true;
 
@@ -166,30 +166,26 @@ namespace UI.Li.Json
                     currentValue.Value = tmpValue.Value;
                     onValueChanged(currentValue.Value);
                 }
-                
-                IComponent NotEditing() =>
-                    CU.Flex(
-                        direction: FlexDirection.Row,
-                        content: IComponent.Seq(CU.Text("\""), CU.Text(currentValue), CU.Text("\"")),
-                        data: new(
-                            onClick: StartEditing
-                        ));
 
                 IComponent Editing() =>
                     CU.TextField(
                         v => tmpValue.Value = v,
                         currentValue,
-                        data: new(
-                            minWidth: 200,
-                            onBlur: FinishEditing,
-                            onKeyDown: e =>
+                        manipulators: new IManipulator[] {
+                            new Blurrable(FinishEditing),
+                            new KeyHandler(onKeyDown: e =>
                             {
                                 if (e.Character == '\n')
                                     FinishEditing();
-                            }
-                        ));
-                
-                return CU.Switch(editing, Editing, NotEditing);
+                            })
+                        }).WithStyle(new (minWidth: 200));
+
+                IComponent NotEditing() =>
+                    CU.Flex(
+                        direction: FlexDirection.Row,
+                        content: IComponent.Seq(CU.Text("\""), CU.Text(currentValue), CU.Text("\"")),
+                        manipulators: new Clickable(StartEditing)
+                    );
             });
 
         private static IComponent Number([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged) =>
@@ -219,23 +215,21 @@ namespace UI.Li.Json
                 }
 
                 IComponent NotEditing() =>
-                    CU.Text(ValueAsString(), data: new(
-                        onClick: StartEditing
-                    ));
+                    CU.Text(ValueAsString(), manipulators: new Clickable(StartEditing));
 
                 IComponent Editing() =>
                     CU.TextField(
                         v => tmpValue.Value = v,
                         ValueAsString(),
-                        data: new(
-                            minWidth: 200,
-                            onBlur: FinishEditing,
-                            onKeyDown: e =>
+                        manipulators: new IManipulator[]
+                        {
+                            new Blurrable(FinishEditing),
+                            new KeyHandler(onKeyDown: e =>
                             {
                                 if (e.Character == '\n')
                                     FinishEditing();
-                            }
-                        ));
+                            })
+                        }).WithStyle(new (minWidth: 200));
                 
                 return CU.Switch(editing, Editing, NotEditing);
             });
@@ -280,14 +274,13 @@ namespace UI.Li.Json
                     [NotNull] Action onRequestMoveDown
                 ) => CU.Flex(
                     direction: FlexDirection.Row,
-                    data: new(alignItems: Align.FlexStart),
                     content: IComponent.Seq(
-                        CU.Text($"{index}:", data: new ( minWidth: 20 )),
+                        CU.Text($"{index}:").WithStyle(new (minWidth: 20)),
                         CU.Button(onRequestRemove, "-"),
                         CU.Button(onRequestMoveUp, "^"),
                         CU.Button(onRequestMoveDown, "v"),
                         DynamicTypeValue(initialValue, onValueChanged)
-                    ));
+                    )).WithStyle(new (alignItems: Align.FlexStart));
                 
                 IComponent AddButton() =>
                     CU.Button(AddElement, "Add");
@@ -372,14 +365,13 @@ namespace UI.Li.Json
                     [NotNull] Action onRequestMoveDown
                 ) => CU.Flex(
                     direction: FlexDirection.Row,
-                    data: new ( alignItems: Align.FlexStart ),
                     content: IComponent.Seq(
                         CU.Button(onRequestRemove, "-"),
                         CU.Button(onRequestMoveUp, "^"),
                         CU.Button(onRequestMoveDown, "v"),
                         String(name, v => onNameChanged(v.Value<string>())),
                         DynamicTypeValue(initialValue, onValueChanged)
-                ));
+                )).WithStyle(new (alignItems: Align.FlexStart));
                 
                 IComponent AddField() =>
                     new Component(fCtx =>
@@ -388,17 +380,15 @@ namespace UI.Li.Json
 
                         return CU.TextField(
                             v => tmpValue.Value = v,
-                            data: new(
-                                onKeyDown: e =>
-                                {
-                                    using var _ = fCtx.BatchOperations();
+                            manipulators: new KeyHandler(onKeyDown: e =>
+                            {
+                                using var _ = fCtx.BatchOperations();
 
-                                    if (e.Character != '\n') return;
+                                if (e.Character != '\n') return;
                                     
-                                    AddElement(tmpValue.Value);
-                                    tmpValue.NotifyChanged();
-                                }
-                            )
+                                AddElement(tmpValue.Value);
+                                tmpValue.NotifyChanged();
+                            })
                         );
                     });
                 
