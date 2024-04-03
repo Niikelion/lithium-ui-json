@@ -9,6 +9,9 @@ using UI.Li.Common;
 using UI.Li.Utils;
 using CU = UI.Li.Utils.CompositionUtils;
 
+using static UI.Li.Common.Layout.Layout;
+using static UI.Li.Common.Common;
+
 namespace UI.Li.Json
 {
     [PublicAPI] public static class JsonUI
@@ -97,7 +100,7 @@ namespace UI.Li.Json
         {
             var content = GetEntryForValue(initialValue).Handler(initialValue, onValueChanged, picker, suffix);
 
-            return CU.Box(content).WithStyle(fillStyle);
+            return Box(content).WithStyle(fillStyle);
         }
 
         public static IComponent DynamicTypeValue([NotNull] JToken initialValue,
@@ -126,7 +129,7 @@ namespace UI.Li.Json
                     options: typeNames
                 ).WithStyle(new (margin: new (right: 4)));
 
-                return CU.Box(Value(tmpValue.Value, OnValueChanged, picker, suffix).Id(type.Value+1))
+                return Box(Value(tmpValue.Value, OnValueChanged, picker, suffix).Id(type.Value + 1))
                     .WithStyle(new(
                         alignItems: Align.Stretch,
                         justifyContent: Justify.SpaceBetween,
@@ -140,14 +143,12 @@ namespace UI.Li.Json
                 }
             }, isStatic: true);
 
-        private static IComponent Null([NotNull] JToken value, [NotNull] Action<JToken> setValue, IComponent prefix = null, IComponent suffix = null)
-        {
-            return CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                CU.Switch(prefix != null, () => prefix, () => CU.Box()),
-                CU.Text("Null").WithStyle(fillStyle),
-                CU.Switch(suffix != null, () => suffix, () => CU.Box())
-            )).WithStyle(new (alignItems: Align.Center));
-        }
+        private static IComponent Null([NotNull] JToken value, [NotNull] Action<JToken> setValue, IComponent prefix = null, IComponent suffix = null) =>
+            Row(
+                CU.Switch(prefix != null, () => prefix, () => null),
+                Text("Null").WithStyle(fillStyle),
+                CU.Switch(suffix != null, () => suffix, () => null)
+            ).WithStyle(new (alignItems: Align.Center));
 
         private static IComponent String([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged, IComponent prefix = null, IComponent suffix = null) =>
             new Component(ctx =>
@@ -157,11 +158,11 @@ namespace UI.Li.Json
 
                 var tmpValue = ctx.RememberRef(initialValue.ToString());
 
-                return CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                    CU.Switch(prefix != null, () => prefix, () => CU.Box()),
+                return Row(
+                    CU.Switch(prefix != null, () => prefix, () => null),
                     Content().WithStyle(fillStyle),
-                    CU.Switch(suffix != null, () => suffix, () => CU.Box())
-                ));
+                    CU.Switch(suffix != null, () => suffix, () => null)
+                );
                 
                 IComponent Content() => CU.Switch(editing, Editing, NotEditing);
                 
@@ -180,7 +181,7 @@ namespace UI.Li.Json
                 }
 
                 IComponent Editing() =>
-                    CU.Box(
+                    Box(
                     CU.TextField(
                         v => tmpValue.Value = v,
                         (string)currentValue ?? "",
@@ -196,9 +197,12 @@ namespace UI.Li.Json
                         }).WithStyle(new(minWidth: 32)));
 
                 IComponent NotEditing() =>
-                    CU.Flex(
-                        direction: FlexDirection.Row,
-                        content: IComponent.Seq(CU.Text("\""), CU.Text(currentValue), CU.Text("\"")).Select(c => c.WithStyle(stringTextStyle)),
+                    Row(
+                        content: IComponent.Seq(
+                            Text("\""),
+                            Text(currentValue),
+                            Text("\"")
+                        ).Select(c => c.WithStyle(stringTextStyle)),
                         manipulators: new Clickable(StartEditing)
                     );
             });
@@ -210,11 +214,11 @@ namespace UI.Li.Json
                 var currentValue = ctx.Remember(initialValue.Value<float>());
                 var tmpValue = ctx.RememberRef(initialValue.ToString());
 
-                return CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                    CU.Switch(prefix != null, () => prefix, () => CU.Box()),
+                return Row(
+                    CU.Switch(prefix != null, () => prefix, () => null),
                     Content().WithStyle(fillStyle),
-                    CU.Switch(suffix != null, () => suffix, () => CU.Box())
-                ));
+                    CU.Switch(suffix != null, () => suffix, () => null)
+                );
 
                 IComponent Content() => CU.Switch(editing, Editing, NotEditing);
                 
@@ -238,7 +242,7 @@ namespace UI.Li.Json
                 }
 
                 IComponent NotEditing() =>
-                    CU.Text(ValueAsString(), manipulators: new Clickable(StartEditing)).WithStyle(numberTextStyle);
+                    Text(ValueAsString(), manipulators: new Clickable(StartEditing)).WithStyle(numberTextStyle);
 
                 IComponent Editing() =>
                     CU.TextField(
@@ -260,21 +264,21 @@ namespace UI.Li.Json
             {
                 var items = ctx.Use(() => new MutableList<JToken>(initialValue.Children()));
 
-                return CU.Flex(IComponent.Seq(
+                return Col(
                     Start(),
                     Content(),
                     End()
-                    ));
+                );
 
-                IComponent Start() => CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                    CU.Switch(prefix != null, () => prefix, () => CU.Box()),
-                    CU.Text("[").WithStyle(fillStyle).WithStyle(scopeBracketsStyle),
-                    CU.Switch(suffix != null, () => suffix, () => CU.Box())
-                ));
-                IComponent End() => CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                    CU.Text("]").WithStyle(scopeBracketsStyle),
+                IComponent Start() => Row(
+                    CU.Switch(prefix != null, () => prefix, () => null),
+                    Text("[").WithStyle(fillStyle).WithStyle(scopeBracketsStyle),
+                    CU.Switch(suffix != null, () => suffix, () => null)
+                );
+                IComponent End() => Row(
+                    Text("]").WithStyle(scopeBracketsStyle),
                     AddButton()
-                )).WithStyle(new (alignItems: Align.Center));
+                ).WithStyle(new (alignItems: Align.Center));
                 
                 void InvokeOnValueChanged()
                 {
@@ -309,24 +313,19 @@ namespace UI.Li.Json
                     [NotNull] Action onRequestRemove,
                     [NotNull] Action onRequestMoveUp,
                     [NotNull] Action onRequestMoveDown
-                )
-                {
-                    return CU.Flex(
-                        direction: FlexDirection.Row,
-                        content: IComponent.Seq(
-                            CU.Text($"{index}:").WithStyle(new(minWidth: 20)),
-                            DynamicTypeValue(initialValue, onValueChanged, Controls())
-                        )).WithStyle(new(alignItems: Align.FlexStart));
+                ) =>
+                    Row(
+                        Text($"{index}:").WithStyle(new(minWidth: 20)),
+                        DynamicTypeValue(initialValue, onValueChanged,
+                            Row(
+                                Button(onRequestRemove, "x"),
+                                Button(onRequestMoveUp, "^"),
+                                Button(onRequestMoveDown, "v")
+                            )
+                        )
+                    ).WithStyle(new(alignItems: Align.FlexStart));
 
-                    IComponent Controls() => CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                        CU.Button(onRequestRemove, "x"),
-                        CU.Button(onRequestMoveUp, "^"),
-                        CU.Button(onRequestMoveDown, "v")
-                    ));
-                }
-
-                IComponent AddButton() =>
-                    CU.Button(AddElement, "+");
+                IComponent AddButton() => Button(AddElement, "+");
 
                 IComponent Content()
                 {
@@ -368,7 +367,7 @@ namespace UI.Li.Json
                         ).Id((int)id + 1);
                     });
 
-                    return CU.Flex(content).WithStyle(scopeStyle);
+                    return Col(content).WithStyle(scopeStyle);
                 }
             }, isStatic: true);
 
@@ -379,21 +378,21 @@ namespace UI.Li.Json
                 
                 var items = ctx.Use(() => new MutableList<(string name, JToken value)>(obj.Properties().Select(p => (p.Name, p.Value))));
 
-                return CU.Flex(IComponent.Seq(
+                return Col(
                     Start(),
                     Content(),
                     End()
-                    ));
+                );
 
-                IComponent Start() => CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                    CU.Switch(prefix != null, () => prefix, () => CU.Box()),
-                    CU.Text("{").WithStyle(fillStyle).WithStyle(scopeBracketsStyle),
-                    CU.Switch(suffix != null, () => suffix, () => CU.Box())
-                ));
+                IComponent Start() => Row(
+                    CU.Switch(prefix != null, () => prefix, () => null),
+                    Text("{").WithStyle(fillStyle).WithStyle(scopeBracketsStyle),
+                    CU.Switch(suffix != null, () => suffix, () => null)
+                );
                 
                 IComponent End() =>
-                    CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                        CU.Text("}").WithStyle(scopeBracketsStyle),
+                    Row(content: IComponent.Seq(
+                        Text("}").WithStyle(scopeBracketsStyle),
                         AddField()
                     ));
                 
@@ -451,7 +450,7 @@ namespace UI.Li.Json
                         ).Id((int)id + 1);
                     });
 
-                    return CU.Flex(content).WithStyle(scopeStyle);
+                    return Col(content).WithStyle(scopeStyle);
                 }
                 
                 void InvokeOnValueChanged()
@@ -482,41 +481,37 @@ namespace UI.Li.Json
                     [NotNull] Action onRequestMoveDown
                 )
                 {
-                    return CU.Flex(
-                        direction: FlexDirection.Row,
-                        content: IComponent.Seq(
-                            // TODO: use custom component to better control sizing
-                            String(name, v => onNameChanged(v.Value<string>()))
-                                .WithStyle(new (flexGrow: 0)),
-                            DynamicTypeValue(initialValue, onValueChanged, Controls())
-                        )).WithStyle(new(alignItems: Align.FlexStart));
-
-                    IComponent Controls() =>
-                        CU.Flex(direction: FlexDirection.Row, content: IComponent.Seq(
-                            CU.Button(onRequestRemove, "x"),
-                            CU.Button(onRequestMoveUp, "^"),
-                            CU.Button(onRequestMoveDown, "v")
-                        ));
+                    return Row(
+                        // TODO: use custom component to better control sizing
+                        String(name, v => onNameChanged(v.Value<string>()))
+                            .WithStyle(new(flexGrow: 0)),
+                        DynamicTypeValue(initialValue, onValueChanged,
+                            Row(
+                                Button(onRequestRemove, "x"),
+                                Button(onRequestMoveUp, "^"),
+                                Button(onRequestMoveDown, "v")
+                            )
+                        )
+                    ).WithStyle(new(alignItems: Align.FlexStart));
                 }
 
-                IComponent AddField() =>
-                    new Component(fCtx =>
-                    {
-                        var tmpValue = fCtx.RememberRef("");
+                IComponent AddField() => new Component(fCtx =>
+                {
+                    var tmpValue = fCtx.RememberRef("");
 
-                        return CU.TextField(
-                            v => tmpValue.Value = v,
-                            manipulators: new KeyHandler(onKeyDown: e =>
-                            {
-                                using var _ = fCtx.BatchOperations();
+                    return CU.TextField(
+                        v => tmpValue.Value = v,
+                        manipulators: new KeyHandler(onKeyDown: e =>
+                        {
+                            using var _ = fCtx.BatchOperations();
 
-                                if (e.Character != '\n') return;
+                            if (e.Character != '\n') return;
 
-                                AddElement(tmpValue.Value);
-                                tmpValue.NotifyChanged();
-                            })
-                        ).WithStyle(new (minWidth: 32));
-                    });
+                            AddElement(tmpValue.Value);
+                            tmpValue.NotifyChanged();
+                        })
+                    ).WithStyle(new(minWidth: 32));
+                });
             });
     }
 }
