@@ -1,5 +1,5 @@
 ﻿{
-  "name": "niikelion.ui.lithium.json",
+  "name": "com.niikelion.ui.lithium.json",
   "version": "0.1.0",
   "displayName": "Lithium UI Json",
   "description": "Extension for Lithium UI that provides serializable wrapper for JToken and custom inspector",
@@ -8,7 +8,7 @@
     "ui", "lithium", "ui-toolkit", "json"
   ],
   "dependencies": {
-    "niikelion.ui.lithium": "0.4.2",
+    "com.niikelion.ui.lithium": "0.5.0",
     "com.unity.nuget.newtonsoft-json": "1.1.2"
   },
   "author": {

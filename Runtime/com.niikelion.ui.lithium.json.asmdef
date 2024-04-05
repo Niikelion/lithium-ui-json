@@ -1,8 +1,8 @@
 {
-    "name": "niikelion.ui.lithium.json",
+    "name": "com.niikelion.ui.lithium.json",
     "rootNamespace": "UI.Li.Json",
     "references": [
-        "niikelion.ui.lithium"
+        "com.niikelion.ui.lithium"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

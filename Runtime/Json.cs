@@ -9,8 +9,9 @@ using UI.Li.Common;
 using UI.Li.Utils;
 using CU = UI.Li.Utils.CompositionUtils;
 
-using static UI.Li.Common.Layout.Layout;
 using static UI.Li.Common.Common;
+using static UI.Li.Common.Layout.Layout;
+using static UI.Li.Utils.Utils;
 
 namespace UI.Li.Json
 {
@@ -145,9 +146,9 @@ namespace UI.Li.Json
 
         private static IComponent Null([NotNull] JToken value, [NotNull] Action<JToken> setValue, IComponent prefix = null, IComponent suffix = null) =>
             Row(
-                CU.Switch(prefix != null, () => prefix, () => null),
+                Switch(prefix != null, () => prefix, null),
                 Text("Null").WithStyle(fillStyle),
-                CU.Switch(suffix != null, () => suffix, () => null)
+                Switch(suffix != null, () => suffix, null)
             ).WithStyle(new (alignItems: Align.Center));
 
         private static IComponent String([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged, IComponent prefix = null, IComponent suffix = null) =>
@@ -159,12 +160,12 @@ namespace UI.Li.Json
                 var tmpValue = ctx.RememberRef(initialValue.ToString());
 
                 return Row(
-                    CU.Switch(prefix != null, () => prefix, () => null),
+                    Switch(prefix != null, () => prefix, null),
                     Content().WithStyle(fillStyle),
-                    CU.Switch(suffix != null, () => suffix, () => null)
+                    Switch(suffix != null, () => suffix, null)
                 );
                 
-                IComponent Content() => CU.Switch(editing, Editing, NotEditing);
+                IComponent Content() => Switch(editing, Editing, NotEditing);
                 
                 void StartEditing() => editing.Value = true;
 
@@ -215,12 +216,12 @@ namespace UI.Li.Json
                 var tmpValue = ctx.RememberRef(initialValue.ToString());
 
                 return Row(
-                    CU.Switch(prefix != null, () => prefix, () => null),
+                    Switch(prefix != null, () => prefix, () => null),
                     Content().WithStyle(fillStyle),
-                    CU.Switch(suffix != null, () => suffix, () => null)
+                    Switch(suffix != null, () => suffix, () => null)
                 );
 
-                IComponent Content() => CU.Switch(editing, Editing, NotEditing);
+                IComponent Content() => Switch(editing, Editing, NotEditing);
                 
                 string ValueAsString() => currentValue.Value.ToString("0");
                 
@@ -271,9 +272,9 @@ namespace UI.Li.Json
                 );
 
                 IComponent Start() => Row(
-                    CU.Switch(prefix != null, () => prefix, () => null),
+                    Switch(prefix != null, () => prefix, () => null),
                     Text("[").WithStyle(fillStyle).WithStyle(scopeBracketsStyle),
-                    CU.Switch(suffix != null, () => suffix, () => null)
+                    Switch(suffix != null, () => suffix, () => null)
                 );
                 IComponent End() => Row(
                     Text("]").WithStyle(scopeBracketsStyle),
@@ -385,9 +386,9 @@ namespace UI.Li.Json
                 );
 
                 IComponent Start() => Row(
-                    CU.Switch(prefix != null, () => prefix, () => null),
+                    Switch(prefix != null, () => prefix, () => null),
                     Text("{").WithStyle(fillStyle).WithStyle(scopeBracketsStyle),
-                    CU.Switch(suffix != null, () => suffix, () => null)
+                    Switch(suffix != null, () => suffix, () => null)
                 );
                 
                 IComponent End() =>
