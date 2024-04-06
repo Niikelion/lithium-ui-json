@@ -7,11 +7,11 @@ using UnityEngine.UIElements;
 using System.Collections.Generic;
 using UI.Li.Common;
 using UI.Li.Utils;
-using CU = UI.Li.Utils.CompositionUtils;
 
 using static UI.Li.Common.Common;
 using static UI.Li.Common.Layout.Layout;
 using static UI.Li.Utils.Utils;
+using static UI.Li.Fields.Fields;
 
 namespace UI.Li.Json
 {
@@ -113,7 +113,7 @@ namespace UI.Li.Json
                 var type = ctx.RememberF(() => typeNames.IndexOf(TypeMapping[initialValue.Type].Name));
                 var tmpValue = ctx.RememberRef(initialValue);
 
-                var picker = CU.Dropdown(
+                var picker = Dropdown(
                     type.Value,
                     onSelectionChanged: newType =>
                     {
@@ -183,7 +183,7 @@ namespace UI.Li.Json
 
                 IComponent Editing() =>
                     Box(
-                    CU.TextField(
+                    TextField(
                         v => tmpValue.Value = v,
                         (string)currentValue ?? "",
                         focused: true,
@@ -246,7 +246,7 @@ namespace UI.Li.Json
                     Text(ValueAsString(), manipulators: new Clickable(StartEditing)).WithStyle(numberTextStyle);
 
                 IComponent Editing() =>
-                    CU.TextField(
+                    TextField(
                         v => tmpValue.Value = v,
                         ValueAsString(),
                         manipulators: new IManipulator[]
@@ -500,7 +500,7 @@ namespace UI.Li.Json
                 {
                     var tmpValue = fCtx.RememberRef("");
 
-                    return CU.TextField(
+                    return TextField(
                         v => tmpValue.Value = v,
                         manipulators: new KeyHandler(onKeyDown: e =>
                         {
