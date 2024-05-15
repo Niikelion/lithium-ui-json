@@ -12,6 +12,7 @@ using static UI.Li.Common.Common;
 using static UI.Li.Common.Layout.Layout;
 using static UI.Li.Utils.Utils;
 using static UI.Li.Fields.Fields;
+using static UI.Li.ComponentState;
 
 namespace UI.Li.Json
 {
@@ -106,27 +107,26 @@ namespace UI.Li.Json
 
         public static IComponent DynamicTypeValue([NotNull] JToken initialValue,
             [NotNull] Action<JToken> onValueChanged, IComponent suffix = null) =>
-            new Component(ctx =>
+            WithState(() =>
             {
                 var typeNames = types.Select(t => t.Name).ToList();
                 
-                var type = ctx.RememberF(() => typeNames.IndexOf(TypeMapping[initialValue.Type].Name));
-                var tmpValue = ctx.RememberRef(initialValue);
+                var type = RememberF(() => typeNames.IndexOf(TypeMapping[initialValue.Type].Name));
+                var tmpValue = RememberRef(initialValue);
 
+                var defer = GetDeferrer();
+                
                 var picker = Dropdown(
                     type.Value,
-                    onSelectionChanged: newType =>
+                    onSelectionChanged: newType => defer(() =>
                     {
                         if (type.Value == newType)
                             return;
 
-                        tmpValue.Value = types[newType].Creator();
-
-                        using var _ = ctx.BatchOperations();
-
                         type.Value = newType;
+                        tmpValue.Value = types[newType].Creator();
                         OnValueChanged(tmpValue.Value);
-                    },
+                    }),
                     options: typeNames
                 ).WithStyle(new (margin: new (right: 4)));
 
@@ -152,13 +152,15 @@ namespace UI.Li.Json
             ).WithStyle(new (alignItems: Align.Center));
 
         private static IComponent String([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged, IComponent prefix = null, IComponent suffix = null) =>
-            new Component(ctx =>
+            WithState(() =>
             {
-                var editing = ctx.Remember(false);
-                var currentValue = ctx.Remember(initialValue.Value<string>());
+                var editing = Remember(false);
+                var currentValue = Remember(initialValue.Value<string>());
 
-                var tmpValue = ctx.RememberRef(initialValue.ToString());
+                var tmpValue = RememberRef(initialValue.ToString());
 
+                var defer = GetDeferrer();
+                
                 return Row(
                     Switch(prefix != null, () => prefix, null),
                     Content().WithStyle(fillStyle),
@@ -169,17 +171,15 @@ namespace UI.Li.Json
                 
                 void StartEditing() => editing.Value = true;
 
-                void FinishEditing()
+                void FinishEditing() => defer(() =>
                 {
-                    using var _ = ctx.BatchOperations();
-                    
                     editing.Value = false;
 
                     if (currentValue.Value == tmpValue.Value) return;
-                    
+
                     currentValue.Value = tmpValue.Value;
                     onValueChanged(currentValue.Value);
-                }
+                });
 
                 IComponent Editing() =>
                     Box(
@@ -209,12 +209,14 @@ namespace UI.Li.Json
             });
 
         private static IComponent Number([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged,IComponent prefix = null, IComponent suffix = null) =>
-            new Component(ctx =>
+            WithState(() =>
             {
-                var editing = ctx.Remember(false);
-                var currentValue = ctx.Remember(initialValue.Value<float>());
-                var tmpValue = ctx.RememberRef(initialValue.ToString());
+                var editing = Remember(false);
+                var currentValue = Remember(initialValue.Value<float>());
+                var tmpValue = RememberRef(initialValue.ToString());
 
+                var defer = GetDeferrer();
+                
                 return Row(
                     Switch(prefix != null, () => prefix, () => null),
                     Content().WithStyle(fillStyle),
@@ -229,17 +231,21 @@ namespace UI.Li.Json
 
                 void FinishEditing()
                 {
-                    using var _ = ctx.BatchOperations();
-                    
-                    editing.Value = false;
+                    defer(Action);
+                    return;
 
-                    if (!float.TryParse(tmpValue.Value, out float value))
-                        return;
+                    void Action()
+                    {
+                        editing.Value = false;
 
-                    if (Mathf.Approximately(currentValue.Value, value)) return;
+                        if (!float.TryParse(tmpValue.Value, out float value))
+                            return;
+
+                        if (Mathf.Approximately(currentValue.Value, value)) return;
                     
-                    currentValue.Value = value;
-                    onValueChanged(currentValue.Value);
+                        currentValue.Value = value;
+                        onValueChanged(currentValue.Value);
+                    }
                 }
 
                 IComponent NotEditing() =>
@@ -261,10 +267,12 @@ namespace UI.Li.Json
             });
 
         private static IComponent Array([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged, IComponent prefix = null, IComponent suffix = null) =>
-            new Component(ctx =>
+            WithState(() =>
             {
-                var items = ctx.Use(() => new MutableList<JToken>(initialValue.Children()));
+                var items = RememberList(() => initialValue.Children());
 
+                var defer = GetDeferrer();
+                
                 return Col(
                     Start(),
                     Content(),
@@ -290,22 +298,18 @@ namespace UI.Li.Json
                             
                     onValueChanged(r);
                 }
-                
-                void AddElement()
+
+                void AddElement() => defer(() =>
                 {
-                    using var _ = ctx.BatchOperations();
-                    
                     items.Add(JValue.CreateNull());
                     InvokeOnValueChanged();
-                }
+                });
 
-                void RemoveElement(int index)
+                void RemoveElement(int index) => defer(() =>
                 {
-                    using var _ = ctx.BatchOperations();
-                    
                     items.RemoveAt(index);
                     InvokeOnValueChanged();
-                }
+                });
 
                 static IComponent ArrayItem(
                     int index,
@@ -337,33 +341,33 @@ namespace UI.Li.Json
                         return ArrayItem(
                             index: index,
                             initialValue: token,
-                            onValueChanged: value =>
+                            onValueChanged: value => defer(() =>
                             {
-                                using var _ = ctx.BatchOperations();
-
                                 items[index] = value;
                                 InvokeOnValueChanged();
-                            },
+                            }),
                             onRequestRemove: () => RemoveElement(index),
                             onRequestMoveUp: () =>
                             {
                                 if (index == 0)
                                     return;
 
-                                using var _ = ctx.BatchOperations();
-
-                                items.Swap(index, index - 1);
-                                InvokeOnValueChanged();
+                                defer(() =>
+                                {
+                                    items.Swap(index, index - 1);
+                                    InvokeOnValueChanged();
+                                });
                             },
                             onRequestMoveDown: () =>
                             {
                                 if (index + 1 == items.Count)
                                     return;
 
-                                using var _ = ctx.BatchOperations();
-
-                                items.Swap(index, index + 1);
-                                InvokeOnValueChanged();
+                                defer(() =>
+                                {
+                                    items.Swap(index, index + 1);
+                                    InvokeOnValueChanged();
+                                });
                             }
                         ).Id((int)id + 1);
                     });
@@ -373,12 +377,14 @@ namespace UI.Li.Json
             }, isStatic: true);
 
         private static IComponent Object([NotNull] JToken initialValue, [NotNull] Action<JToken> onValueChanged, IComponent prefix = null, IComponent suffix = null) =>
-            new Component(ctx =>
+            WithState(() =>
             {
                 var obj = (JObject)initialValue;
                 
-                var items = ctx.Use(() => new MutableList<(string name, JToken value)>(obj.Properties().Select(p => (p.Name, p.Value))));
+                var items = RememberList(() => obj.Properties().Select(p => (p.Name, p.Value)));
 
+                var defer = GetDeferrer();
+                
                 return Col(
                     Start(),
                     Content(),
@@ -407,46 +413,42 @@ namespace UI.Li.Json
                         return ObjectItem(
                             name: name,
                             initialValue: token,
-                            onNameChanged: n =>
+                            onNameChanged: n => defer(() =>
                             {
-                                using var _ = ctx.BatchOperations();
-
-                                items[index] = (n, items[index].value);
+                                items[index] = (n, items[index].Value);
                                 InvokeOnValueChanged();
-                            },
-                            onValueChanged: value =>
+                            }),
+                            onValueChanged: value => defer(() =>
                             {
-                                using var _ = ctx.BatchOperations();
-
-                                items[index] = (items[index].name, value);
+                                items[index] = (items[index].Name, value);
                                 InvokeOnValueChanged();
-                            },
-                            onRequestRemove: () =>
+                            }),
+                            onRequestRemove: () => defer(() =>
                             {
-                                using var _ = ctx.BatchOperations();
-
                                 items.RemoveAt(index);
                                 InvokeOnValueChanged();
-                            },
+                            }),
                             onRequestMoveDown: () =>
                             {
                                 if (index == 0)
                                     return;
 
-                                using var _ = ctx.BatchOperations();
-
-                                items.Swap(index, index - 1);
-                                InvokeOnValueChanged();
+                                defer(() =>
+                                {
+                                    items.Swap(index, index - 1);
+                                    InvokeOnValueChanged(); 
+                                });
                             },
                             onRequestMoveUp: () =>
                             {
                                 if (index + 1 == items.Count)
                                     return;
 
-                                using var _ = ctx.BatchOperations();
-
-                                items.Swap(index, index + 1);
-                                InvokeOnValueChanged();
+                                defer(() =>
+                                {
+                                    items.Swap(index, index + 1);
+                                    InvokeOnValueChanged();
+                                });
                             }
                         ).Id((int)id + 1);
                     });
@@ -459,18 +461,16 @@ namespace UI.Li.Json
                     var r = new JObject();
 
                     foreach (var i in items)
-                        r.Add(i.name, i.value);
+                        r.Add(i.Name, i.Value);
                             
                     onValueChanged(r);
                 }
-                
-                void AddElement(string name)
+
+                void AddElement(string name) => defer(() =>
                 {
-                    using var _ = ctx.BatchOperations();
-                    
                     items.Add((name, JValue.CreateNull()));
                     InvokeOnValueChanged();
-                }
+                });
 
                 static IComponent ObjectItem(
                     string name,
@@ -496,21 +496,19 @@ namespace UI.Li.Json
                     ).WithStyle(new(alignItems: Align.FlexStart));
                 }
 
-                IComponent AddField() => new Component(fCtx =>
+                IComponent AddField() => WithState(() =>
                 {
-                    var tmpValue = fCtx.RememberRef("");
+                    var tmpValue = RememberRef("");
 
                     return TextField(
                         v => tmpValue.Value = v,
-                        manipulators: new KeyHandler(onKeyDown: e =>
+                        manipulators: new KeyHandler(onKeyDown: e => defer(() =>
                         {
-                            using var _ = fCtx.BatchOperations();
-
                             if (e.Character != '\n') return;
 
                             AddElement(tmpValue.Value);
                             tmpValue.NotifyChanged();
-                        })
+                        }))
                     ).WithStyle(new(minWidth: 32));
                 });
             });
